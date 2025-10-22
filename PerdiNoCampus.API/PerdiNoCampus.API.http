@@ -1,0 +1,6 @@
+@PerdiNoCampus.API_HostAddress = http://localhost:5129
+
+GET {{PerdiNoCampus.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
