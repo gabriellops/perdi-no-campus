@@ -1,14 +1,18 @@
-﻿namespace PerdiNoCampus.API.Contracts
+﻿using PerdiNoCampus.API.Models;
+
+namespace PerdiNoCampus.API.Contracts
 {
     public class ItemResponse
     {
-        public long Id { get; set; }
+        public Guid Id { get; set; }
         public string Nome { get; set; }
-        public string Categoria { get; set; }
-        public string Local { get; set; }
-        public DateTime Horario { get; set; }
+        public ECategoriaItem CategoriaItem { get; set; }
+        public string LocalEncontrado { get; set; }
+        public ETurno TurnoEncontrado { get; set; }
         public string UsarioNomeLocalizou { get; set; }
         public string ImagemUrl { get; set; }
+        public bool? FoiRecuperado { get; set; }
+        public bool? FoiEntregueAPrefeitura { get; set; }
         public DateTime CriadoEm { get; set; }
     }
 }
