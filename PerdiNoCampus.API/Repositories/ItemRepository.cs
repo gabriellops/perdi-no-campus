@@ -1,54 +1,55 @@
 ﻿using PerdiNoCampus.API.Models;
 using PerdiNoCampus.API.Repositories.Interfaces;
+using Supabase;
 using System.Linq.Expressions;
 
 namespace PerdiNoCampus.API.Repositories
 {
     public class ItemRepository : IItemRepository
     {
-        private readonly PerdiNoCampusContext _context;
+        private readonly Client _client;
 
-        public ItemRepository(PerdiNoCampusContext context)
+        public ItemRepository(Client client)
         {
-            _context = context;
+            _client = client;
         }
 
         public async Task AddAsync(ItemModel item)
         {
-            await _context.Set<ItemModel>().AddAsync(item);
-            await _context.SaveChangesAsync();
+            await _client.From<ItemModel>().Insert(item);
         }
 
         public async Task<List<ItemModel>> ListAsync()
         {
-            return await _context.Set<ItemModel>().ToListAsync();
+            var response = await _client.From<ItemModel>().Get();
+            return response.Models;
         }
 
         public async Task<List<ItemModel>> ListAsync(Expression<Func<ItemModel, bool>> expression)
         {
-            return await _context.Set<ItemModel>().Where(expression).ToListAsync();
+            var response = await _client.From<ItemModel>().Get();
+            return response.Models.AsQueryable().Where(expression).ToList();
         }
 
-        public async Task<ItemModel> FindAsync(int id)
+        public async Task<ItemModel> FindAsync(Guid id)
         {
-            return await _context.Set<ItemModel>().FindAsync(id);
+            var response = await _client
+                .From<ItemModel>()
+                .Filter("id", Supabase.Postgrest.Constants.Operator.Equals, id.ToString())
+                .Single();
+
+            return response;
         }
 
         public async Task<ItemModel> FindAsNoTrackingAsync(Expression<Func<ItemModel, bool>> expression)
         {
-            return await _context.Set<ItemModel>().AsNoTracking().FirstOrDefaultAsync(expression);
+            var response = await _client.From<ItemModel>().Get();
+            return response.Models.AsQueryable().FirstOrDefault(expression);
         }
 
         public async Task EditAsync(ItemModel item)
         {
-            _context.Set<ItemModel>().Remove(item);
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task DeleteAsync(ItemModel item)
-        {
-            _context.Set<ItemModel>().Update(item);
-            await _context.SaveChangesAsync();
+            await _client.From<ItemModel>().Update(item);
         }
     }
 }

@@ -2,9 +2,9 @@
 {
     public enum ECategoriaItem
     {
-        AparelhoEletronico,
+        Eletronicos,
         Roupas,
-        Documento,
-        Outros
+        Documentos,
+        ObjetosPessoais,
     }
 }

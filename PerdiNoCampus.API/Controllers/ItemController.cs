@@ -2,11 +2,12 @@ using Microsoft.AspNetCore.Mvc;
 using PerdiNoCampus.API.Contracts;
 using PerdiNoCampus.API.Models;
 using PerdiNoCampus.API.Services.Interfaces;
+using System.Xml.Linq;
 
 namespace PerdiNoCampus.API.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("items")]
     public class ItemController : ControllerBase
     {
         private readonly IItemService _itemService;
@@ -27,7 +28,9 @@ namespace PerdiNoCampus.API.Controllers
                 LocalEncontrado = request.LocalEncontrado,
                 TurnoEncontrado = request.TurnoEncontrado,
                 UsarioNomeLocalizou = request.UsarioNomeLocalizou,
+                Matricula = request.Matricula ?? 0,
                 ImagemUrl = request.ImagemUrl,
+                FoiEntregueAPrefeitura = request.FoiEntregueAPrefeitura ?? false
             };
 
             await _itemService.CriarAsync(requestToItem);
@@ -37,116 +40,151 @@ namespace PerdiNoCampus.API.Controllers
 
         [HttpGet]
         [ProducesResponseType(200)]
-        public async Task<ActionResult<List<ItemResponse>>> GetAsync()
+        public async Task<ActionResult<IEnumerable<ItemResponse>>> GetAsync()
         {
-            var items = await _itemService.ObterTodosAsync();
-            var entitiesToDto = items.Select(item => new ItemResponse
+            var items = await _itemService.ObterTodosAsync(x => x.Ativo && x.FoiRecuperado == false);
+
+            var response = items.Select(x => new ItemResponse
             {
-                Id = item.Id,
-                Nome = item.Nome,
-                CategoriaItem = item.CategoriaItem,
-                LocalEncontrado = item.LocalEncontrado,
-                TurnoEncontrado = item.TurnoEncontrado,
-                UsarioNomeLocalizou = item.UsarioNomeLocalizou,
-                ImagemUrl = item.ImagemUrl,
-                FoiRecuperado = item.FoiRecuperado,
-                FoiEntregueAPrefeitura = item.FoiEntregueAPrefeitura,
-                CriadoEm = item.CriadoEm
+                Id = x.Id,
+                Nome = x.Nome,
+                Descricao = x.Descricao,
+                CategoriaItem = x.CategoriaItem,
+                LocalEncontrado = x.LocalEncontrado,
+                TurnoEncontrado = x.TurnoEncontrado,
+                UsarioNomeLocalizou = x.UsarioNomeLocalizou,
+                Matricula = x.Matricula,
+                ImagemUrl = x.ImagemUrl,
+                FoiRecuperado = x.FoiRecuperado,
+                FoiEntregueAPrefeitura = x.FoiEntregueAPrefeitura,
+                Ativo = x.Ativo,
+                CriadoEm = x.CriadoEm
             }).ToList();
 
-            return Ok(entitiesToDto);
+            return Ok(response);
         }
 
-        [HttpGet("nome")]
+        [HttpGet("search")]
         [ProducesResponseType(200)]
-        public async Task<ActionResult<List<ItemResponse>>> GetByNameAsync([FromQuery] string nome)
+        public async Task<ActionResult<IEnumerable<ItemResponse>>> GetByNameAsync([FromQuery] string nome)
         {
-            var items = await _itemService.ObterTodosAsync(x => x.Nome.Contains(nome));
-            var entitiesToDto = items.Select(item => new ItemResponse
+            nome = nome?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(nome))
             {
-                Id = item.Id,
-                Nome = item.Nome,
-                CategoriaItem = item.CategoriaItem,
-                LocalEncontrado = item.LocalEncontrado,
-                TurnoEncontrado = item.TurnoEncontrado,
-                UsarioNomeLocalizou = item.UsarioNomeLocalizou,
-                ImagemUrl = item.ImagemUrl,
-                CriadoEm = item.CriadoEm
+                // se vier vazio, devolve o mesmo que o GetAll
+                var all = await _itemService.ObterTodosAsync(x => x.Ativo && x.FoiRecuperado == false);
+                return Ok(all);
+            }
+
+            var items = await _itemService.ObterTodosAsync(x =>
+                                            x.Ativo &&
+                                            x.FoiRecuperado == false &&
+                                            (
+                                                x.Nome.ToLower().Contains(nome.ToLower()) ||
+                                                x.Descricao.ToLower().Contains(nome.ToLower()) ||
+                                                x.LocalEncontrado.ToLower().Contains(nome.ToLower())
+                                            ));
+
+            var response = items.Select(x => new ItemResponse
+            {
+                Id = x.Id,
+                Nome = x.Nome,
+                Descricao = x.Descricao,
+                CategoriaItem = x.CategoriaItem,
+                LocalEncontrado = x.LocalEncontrado,
+                TurnoEncontrado = x.TurnoEncontrado,
+                UsarioNomeLocalizou = x.UsarioNomeLocalizou,
+                Matricula = x.Matricula,
+                ImagemUrl = x.ImagemUrl,
+                FoiRecuperado = x.FoiRecuperado,
+                FoiEntregueAPrefeitura = x.FoiEntregueAPrefeitura,
+                Ativo = x.Ativo,
+                CriadoEm = x.CriadoEm
             }).ToList();
 
-            return Ok(entitiesToDto);
+            return Ok(response);
         }
 
         [HttpGet("categoria")]
         [ProducesResponseType(200)]
-        public async Task<ActionResult<List<ItemResponse>>> GetByCategoryAsync([FromQuery] string categoria)
+        public async Task<ActionResult<IEnumerable<ItemResponse>>> GetByCategoryAsync([FromQuery] string categoria)
         {
-            var items = await _itemService.ObterTodosAsync(x => x.CategoriaItem.ToString().Contains(categoria));
-            var entitiesToDto = items.Select(item => new ItemResponse
+            if (string.IsNullOrWhiteSpace(categoria))
+                return BadRequest("Categoria é obrigatória.");
+
+            categoria = categoria.Trim();
+
+            var items = await _itemService.ObterTodosAsync(x =>
+                x.Ativo &&
+                x.FoiRecuperado == false &&
+                x.CategoriaItem.ToString() == categoria
+            );
+
+            var response = items.Select(x => new ItemResponse
             {
-                Id = item.Id,
-                Nome = item.Nome,
-                CategoriaItem = item.CategoriaItem,
-                LocalEncontrado = item.LocalEncontrado,
-                TurnoEncontrado = item.TurnoEncontrado,
-                UsarioNomeLocalizou = item.UsarioNomeLocalizou,
-                ImagemUrl = item.ImagemUrl,
-                CriadoEm = item.CriadoEm
+                Id = x.Id,
+                Nome = x.Nome,
+                Descricao = x.Descricao,
+                CategoriaItem = x.CategoriaItem,
+                LocalEncontrado = x.LocalEncontrado,
+                TurnoEncontrado = x.TurnoEncontrado,
+                UsarioNomeLocalizou = x.UsarioNomeLocalizou,
+                Matricula = x.Matricula,
+                ImagemUrl = x.ImagemUrl,
+                FoiRecuperado = x.FoiRecuperado,
+                FoiEntregueAPrefeitura = x.FoiEntregueAPrefeitura,
+                Ativo = x.Ativo,
+                CriadoEm = x.CriadoEm
             }).ToList();
 
-            return Ok(entitiesToDto);
+            return Ok(response);
         }
 
-        [HttpGet("encontrados")]
+        [HttpGet("resgatados")]
         [ProducesResponseType(200)]
-        public async Task<ActionResult<List<ItemResponse>>> GetFoundItemsAsync()
+        public async Task<ActionResult<IEnumerable<ItemResponse>>> GetFoundItemsAsync()
         {
-            var items = await _itemService.ObterTodosAsync(x => x.FoiRecuperado == true);
-            var entitiesToDto = items.Select(item => new ItemResponse
+            var items = await _itemService.ObterTodosAsync(x =>
+                x.Ativo &&
+                x.FoiRecuperado == true
+             );
+
+            var response = items.Select(x => new ItemResponse
             {
-                Id = item.Id,
-                Nome = item.Nome,
-                CategoriaItem = item.CategoriaItem,
-                LocalEncontrado = item.LocalEncontrado,
-                TurnoEncontrado = item.TurnoEncontrado,
-                UsarioNomeLocalizou = item.UsarioNomeLocalizou,
-                ImagemUrl = item.ImagemUrl,
-                CriadoEm = item.CriadoEm
+                Id = x.Id,
+                Nome = x.Nome,
+                Descricao = x.Descricao,
+                CategoriaItem = x.CategoriaItem,
+                LocalEncontrado = x.LocalEncontrado,
+                TurnoEncontrado = x.TurnoEncontrado,
+                UsarioNomeLocalizou = x.UsarioNomeLocalizou,
+                Matricula = x.Matricula,
+                ImagemUrl = x.ImagemUrl,
+                FoiRecuperado = x.FoiRecuperado,
+                FoiEntregueAPrefeitura = x.FoiEntregueAPrefeitura,
+                Ativo = x.Ativo,
+                CriadoEm = x.CriadoEm
             }).ToList();
 
-            return Ok(entitiesToDto);
+            return Ok(response);
         }
 
-        [HttpGet("{id}")]
-        [ProducesResponseType(200)]
-        public async Task<ActionResult<ItemResponse>> GetByIdAsync([FromRoute] int id)
-        {
-            var item = await _itemService.ObterPorIdAsync(id);
-            var itemToDto = new ItemResponse
-            {
-                Id = item.Id,
-                Nome = item.Nome,
-                CategoriaItem = item.CategoriaItem,
-                LocalEncontrado = item.LocalEncontrado,
-                TurnoEncontrado = item.TurnoEncontrado,
-                UsarioNomeLocalizou = item.UsarioNomeLocalizou,
-                ImagemUrl = item.ImagemUrl,
-                CriadoEm = item.CriadoEm
-            };
-
-            return Ok(itemToDto);
-        }
-
-        [HttpPut("{id}")]
+        [HttpPut("{id:guid}")]
         public async Task<ActionResult> PutAsync([FromRoute] Guid id, [FromBody] UpdateItemRequest request)
         {
+            if (id != request.Id)
+                return BadRequest("Id da rota diferente do corpo da requisição.");
+
             var requestToItem = new ItemModel
             {
                 Id = id,
                 Nome = request.Nome,
+                Descricao = request.Descricao,
                 CategoriaItem = request.CategoriaItem,
                 LocalEncontrado = request.LocalEncontrado,
                 TurnoEncontrado = request.TurnoEncontrado,
+                UsarioNomeLocalizou = request.UsarioNomeLocalizou,
                 ImagemUrl = request.ImagemUrl,
                 FoiEntregueAPrefeitura = request.FoiEntregueAPrefeitura,
                 FoiRecuperado = request.FoiRecuperado
@@ -156,8 +194,8 @@ namespace PerdiNoCampus.API.Controllers
             return NoContent();
         }
 
-        [HttpDelete("{id}")]
-        public async Task<ActionResult> DeleteAsync([FromRoute] int id)
+        [HttpDelete("{id:guid}")]
+        public async Task<ActionResult> DeleteAsync([FromRoute] Guid id)
         {
             await _itemService.DeletarAsync(id);
             return NoContent();

@@ -1,4 +1,5 @@
-﻿using PerdiNoCampus.API.Models;
+﻿using PerdiNoCampus.API.Contracts;
+using PerdiNoCampus.API.Models;
 using System.Linq.Expressions;
 
 namespace PerdiNoCampus.API.Services.Interfaces
@@ -8,8 +9,8 @@ namespace PerdiNoCampus.API.Services.Interfaces
         Task CriarAsync(ItemModel itemModel);
         Task<List<ItemModel>> ObterTodosAsync();
         Task<List<ItemModel>> ObterTodosAsync(Expression<Func<ItemModel, bool>> expression);
-        Task<ItemModel> ObterPorIdAsync(int id);
+        //Task<ItemModel> ObterPorIdAsync(Guid id);
         Task AtualizarAsync(ItemModel itemModel);
-        Task DeletarAsync(int id);
+        Task DeletarAsync(Guid id);
     }
 }
