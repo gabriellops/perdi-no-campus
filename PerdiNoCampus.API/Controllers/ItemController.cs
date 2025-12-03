@@ -146,7 +146,6 @@ namespace PerdiNoCampus.API.Controllers
         public async Task<ActionResult<IEnumerable<ItemResponse>>> GetFoundItemsAsync()
         {
             var items = await _itemService.ObterTodosAsync(x =>
-                x.Ativo &&
                 x.FoiRecuperado == true
              );
 
